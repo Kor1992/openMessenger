@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ripple — messenger</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <a class="logo" href="#"><span class="logo-symbol">↗</span><span>ripple</span></a>
+        <button class="circle-button" aria-label="Создать чат">+</button>
+      </div>
+      <div class="profile-line">
+        <div class="avatar avatar-self">MK</div>
+        <div><strong>Максим</strong><span>в сети</span></div>
+        <button class="dots-button" aria-label="Профиль">•••</button>
+      </div>
+      <label class="search-box"><span>⌕</span><input id="search" type="search" placeholder="Поиск диалогов"></label>
+      <div class="list-heading"><span>Сообщения</span><button id="filter">Все <span>⌄</span></button></div>
+      <div id="chat-list" class="chat-list"></div>
+      <div class="sidebar-footer"><span class="secure-dot"></span><span>Все сообщения защищены</span><button aria-label="Настройки">⚙</button></div>
+    </aside>
+
+    <section class="conversation">
+      <header class="conversation-head">
+        <button class="mobile-back" aria-label="Назад">←</button>
+        <div id="conversation-avatar"></div>
+        <div class="conversation-title"><h1 id="conversation-name"></h1><p id="conversation-status"></p></div>
+        <div class="conversation-actions"><button aria-label="Поиск">⌕</button><button aria-label="Звонок">◡</button><button aria-label="Еще">•••</button></div>
+      </header>
+      <div id="messages" class="messages"></div>
+      <form id="composer" class="composer">
+        <button type="button" class="attach" aria-label="Прикрепить файл">＋</button>
+        <textarea id="message-input" rows="1" placeholder="Написать сообщение..."></textarea>
+        <button type="button" class="emoji" aria-label="Смайл">☺</button>
+        <button class="send" aria-label="Отправить">↑</button>
+      </form>
+    </section>
+
+    <aside class="details-panel">
+      <div class="details-cover"></div>
+      <div class="details-content"><div id="details-avatar"></div><h2 id="details-name"></h2><p id="details-handle"></p><div class="detail-actions"><button>◡<span>Позвонить</span></button><button>⌕<span>Поиск</span></button><button>•••<span>Еще</span></button></div><div class="details-section"><span>Общая информация</span><p id="details-description"></p></div><div class="details-section"><span>Медиа, ссылки и файлы</span><p>12 файлов <b>›</b></p></div></div>
+    </aside>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

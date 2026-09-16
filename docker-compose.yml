@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: messenger-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: messenger
+      POSTGRES_PASSWORD: messenger
+      POSTGRES_DB: messenger
+
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  kafka:
+    image: apache/kafka:4.3.1
+    container_name: messenger-kafka
+    restart: unless-stopped
+    ports:
+      - "9092:9092"
+  
+
+volumes:
+  postgres_data:
