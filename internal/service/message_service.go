@@ -13,7 +13,6 @@ import (
 
 var (
 	ErrInvalidMessage = errors.New("invalid message")
-	ErrNotChatMember  = errors.New("user is not a chat member")
 )
 
 type MessageService interface {

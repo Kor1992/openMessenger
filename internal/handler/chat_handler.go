@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"messanger/internal/middleware"
 	"messanger/internal/service"
 	"net/http"
@@ -54,6 +55,12 @@ func (h *ChatHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	callerID, ok := middleware.UserID(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
 	var req addMemberRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -66,17 +73,19 @@ func (h *ChatHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, ok := middleware.UserID(r.Context()); !ok {
-		writeError(w, http.StatusUnauthorized, "user not authenticated")
-		return
-	}
-
-	if err := h.service.AddMember(
+	err := h.service.AddMember(
 		r.Context(),
 		chatID,
 		req.UserID,
-	); err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to add member")
+		callerID,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrNotChatMember):
+			writeError(w, http.StatusForbidden, "you are not a member of this chat")
+		default:
+			writeError(w, http.StatusInternalServerError, "failed to add member")
+		}
 		return
 	}
 

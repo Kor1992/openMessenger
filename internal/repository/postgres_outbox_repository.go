@@ -77,3 +77,21 @@ func (r *postgresOutboxRepository) MarkPublished(
 
 	return err
 }
+
+func (r *postgresOutboxRepository) Cleanup(
+	ctx context.Context,
+	olderThanDays int,
+) (int64, error) {
+	result, err := r.db.Exec(
+		ctx,
+		`DELETE FROM outbox_events
+		 WHERE published_at IS NOT NULL
+		   AND published_at < NOW() - ($1 || ' days')::INTERVAL`,
+		olderThanDays,
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	return result.RowsAffected(), nil
+}

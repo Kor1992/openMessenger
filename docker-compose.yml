@@ -3,16 +3,19 @@ services:
     image: postgres:16-alpine
     container_name: messenger-postgres
     restart: unless-stopped
-
     environment:
       POSTGRES_USER: messenger
       POSTGRES_PASSWORD: messenger
       POSTGRES_DB: messenger
-
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U messenger"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   kafka:
     image: apache/kafka:4.3.1
@@ -20,7 +23,24 @@ services:
     restart: unless-stopped
     ports:
       - "9092:9092"
-  
+
+  app:
+    build: .
+    container_name: messenger-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://messenger:messenger@postgres:5432/messenger?sslmode=disable
+      JWT_SECRET: super-secret-key-change-me
+      KAFKA_BROKER: kafka:9092
+      KAFKA_TOPIC: messages
+      CORS_ORIGIN: "*"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
 
 volumes:
   postgres_data:

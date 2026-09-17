@@ -3,10 +3,16 @@ package kafka
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"messanger/internal/repository"
+	"time"
 
 	"github.com/segmentio/kafka-go"
+)
+
+const (
+	maxRetries     = 5
+	baseRetryDelay = 500 * time.Millisecond
 )
 
 type Consumer struct {
@@ -46,9 +52,9 @@ func (c *Consumer) Run(ctx context.Context) error {
 		var event MessageCreatedEvent
 
 		if err := json.Unmarshal(msg.Value, &event); err != nil {
-			log.Printf(
-				"failed to decode message: %v",
-				err,
+			slog.Error("failed to decode message",
+				"error", err,
+				"offset", msg.Offset,
 			)
 
 			if err := c.reader.CommitMessages(ctx, msg); err != nil {
@@ -56,6 +62,24 @@ func (c *Consumer) Run(ctx context.Context) error {
 			}
 
 			continue
+		}
+
+		if err := c.processWithRetry(ctx, event, msg); err != nil {
+			return err
+		}
+	}
+}
+
+func (c *Consumer) processWithRetry(
+	ctx context.Context,
+	event MessageCreatedEvent,
+	msg kafka.Message,
+) error {
+	var lastErr error
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
 
 		inserted, err := c.processor.ProcessMessageCreated(
@@ -66,35 +90,55 @@ func (c *Consumer) Run(ctx context.Context) error {
 			event.SenderID,
 		)
 		if err != nil {
-			return err
-		}
-
-		if !inserted {
-			log.Printf(
-				"event already processed: event_id=%s",
-				event.EventID,
+			lastErr = err
+			delay := baseRetryDelay * time.Duration(1<<uint(attempt))
+			slog.Warn("processing failed, retrying",
+				"event_id", event.EventID,
+				"attempt", attempt+1,
+				"max_retries", maxRetries,
+				"delay", delay,
+				"error", err,
 			)
 
-			if err := c.reader.CommitMessages(ctx, msg); err != nil {
-				return err
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(delay):
 			}
 
 			continue
 		}
 
-		log.Printf(
-			"MessageCreated: event_id=%s message_id=%s chat_id=%s sender_id=%s text=%q",
-			event.EventID,
-			event.MessageID,
-			event.ChatID,
-			event.SenderID,
-			event.Text,
-		)
+		if !inserted {
+			slog.Info("event already processed",
+				"event_id", event.EventID,
+			)
+		} else {
+			slog.Info("message processed",
+				"event_id", event.EventID,
+				"message_id", event.MessageID,
+				"chat_id", event.ChatID,
+				"sender_id", event.SenderID,
+			)
+		}
 
 		if err := c.reader.CommitMessages(ctx, msg); err != nil {
 			return err
 		}
+
+		return nil
 	}
+
+	slog.Error("exhausted retries for event",
+		"event_id", event.EventID,
+		"error", lastErr,
+	)
+
+	if err := c.reader.CommitMessages(ctx, msg); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *Consumer) Close() error {

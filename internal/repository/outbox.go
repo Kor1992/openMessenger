@@ -19,4 +19,9 @@ type OutboxRepository interface {
 		ctx context.Context,
 		id string,
 	) error
+
+	Cleanup(
+		ctx context.Context,
+		olderThanDays int,
+	) (int64, error)
 }

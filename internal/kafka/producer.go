@@ -51,11 +51,13 @@ func (p *Producer) PublishMessageCreated(
 
 func (p *Producer) Publish(
 	ctx context.Context,
+	key string,
 	payload []byte,
 ) error {
 	return p.writer.WriteMessages(
 		ctx,
 		kafka.Message{
+			Key:   []byte(key),
 			Value: payload,
 		},
 	)

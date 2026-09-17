@@ -14,27 +14,6 @@ func NewPostgresMessageRepository(db *pgxpool.Pool) MessageRepository {
 	return &postgresMessageRepository{db: db}
 }
 
-func (r *postgresMessageRepository) CreateMessage(
-	ctx context.Context,
-	chatID string,
-	senderID string,
-	text string,
-) (string, error) {
-	var id string
-
-	err := r.db.QueryRow(
-		ctx,
-		`INSERT INTO messages (chat_id, sender_id, text)
-		 VALUES ($1, $2, $3)
-		 RETURNING id`,
-		chatID,
-		senderID,
-		text,
-	).Scan(&id)
-
-	return id, err
-}
-
 func (r *postgresMessageRepository) CreateMessageWithOutbox(
 	ctx context.Context,
 	messageID string,
