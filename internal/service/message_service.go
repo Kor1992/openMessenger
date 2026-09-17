@@ -22,6 +22,7 @@ type MessageService interface {
 		senderID string,
 		text string,
 	) (string, error)
+	ListByChat(ctx context.Context, chatID string, limit, offset int) ([]repository.Message, error)
 }
 
 type messageService struct {
@@ -91,4 +92,8 @@ func (s *messageService) SendMessage(
 	}
 
 	return messageID, nil
+}
+
+func (s *messageService) ListByChat(ctx context.Context, chatID string, limit, offset int) ([]repository.Message, error) {
+	return s.messages.ListByChat(ctx, chatID, limit, offset)
 }

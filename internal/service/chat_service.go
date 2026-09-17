@@ -15,6 +15,8 @@ type ChatService interface {
 	CreateChat(ctx context.Context, creatorID string) (string, error)
 	AddMember(ctx context.Context, chatID, userID, callerID string) error
 	IsMember(ctx context.Context, chatID, userID string) (bool, error)
+	ListByUser(ctx context.Context, userID string) ([]repository.ChatInfo, error)
+	GetMemberIDs(ctx context.Context, chatID string) ([]string, error)
 }
 
 type chatService struct {
@@ -46,4 +48,12 @@ func (s *chatService) AddMember(ctx context.Context, chatID, userID, callerID st
 
 func (s *chatService) IsMember(ctx context.Context, chatID, userID string) (bool, error) {
 	return s.chats.IsMember(ctx, chatID, userID)
+}
+
+func (s *chatService) ListByUser(ctx context.Context, userID string) ([]repository.ChatInfo, error) {
+	return s.chats.ListByUser(ctx, userID)
+}
+
+func (s *chatService) GetMemberIDs(ctx context.Context, chatID string) ([]string, error) {
+	return s.chats.GetMemberIDs(ctx, chatID)
 }

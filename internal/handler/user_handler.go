@@ -123,3 +123,37 @@ func (h *UserHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Token: token,
 	})
 }
+
+type userSearchItem struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+}
+
+func (h *UserHandler) Search(w http.ResponseWriter, r *http.Request) {
+	_, ok := middleware.UserID(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode([]userSearchItem{})
+		return
+	}
+
+	users, err := h.userService.SearchByUsername(r.Context(), query)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	result := make([]userSearchItem, 0, len(users))
+	for _, u := range users {
+		result = append(result, userSearchItem{ID: u.ID, Username: u.Username})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(result)
+}

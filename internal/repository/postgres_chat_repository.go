@@ -119,3 +119,42 @@ func (r *postgresChatRepository) GetMemberIDs(
 
 	return userIDs, nil
 }
+
+func (r *postgresChatRepository) ListByUser(ctx context.Context, userID string) ([]ChatInfo, error) {
+	rows, err := r.db.Query(
+		ctx,
+		`SELECT
+			c.id,
+			c.created_at::text,
+			COALESCE(m.text, '') AS last_message,
+			COALESCE(m.sender_id, '') AS last_sender_id,
+			COALESCE(m.created_at::text, '') AS last_msg_time,
+			(SELECT count(*) FROM chat_members WHERE chat_id = c.id) AS member_count
+		 FROM chats c
+		 JOIN chat_members cm ON cm.chat_id = c.id
+		 LEFT JOIN messages m ON m.chat_id = c.id
+		   AND m.created_at = (
+		     SELECT MAX(created_at) FROM messages WHERE chat_id = c.id
+		   )
+		 WHERE cm.user_id = $1
+		 ORDER BY COALESCE(m.created_at, c.created_at) DESC`,
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var chats []ChatInfo
+	for rows.Next() {
+		var ci ChatInfo
+		if err := rows.Scan(&ci.ID, &ci.CreatedAt, &ci.LastMessage, &ci.LastSenderID, &ci.LastMsgTime, &ci.MemberCount); err != nil {
+			return nil, err
+		}
+		chats = append(chats, ci)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return chats, nil
+}

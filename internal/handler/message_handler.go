@@ -6,15 +6,18 @@ import (
 	"messanger/internal/middleware"
 	"messanger/internal/service"
 	"net/http"
+	"strconv"
 )
 
 type MessageHandler struct {
-	service service.MessageService
+	service     service.MessageService
+	chatService service.ChatService
 }
 
-func NewMessageHandler(service service.MessageService) *MessageHandler {
+func NewMessageHandler(service service.MessageService, chatService service.ChatService) *MessageHandler {
 	return &MessageHandler{
-		service: service,
+		service:     service,
+		chatService: chatService,
 	}
 }
 
@@ -71,4 +74,63 @@ func (h *MessageHandler) Send(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(sendMessageResponse{
 		ID: messageID,
 	})
+}
+
+type messageItem struct {
+	ID        string `json:"id"`
+	SenderID  string `json:"sender_id"`
+	Text      string `json:"text"`
+	CreatedAt string `json:"created_at"`
+}
+
+func (h *MessageHandler) List(w http.ResponseWriter, r *http.Request) {
+	chatID := r.PathValue("chatID")
+	if chatID == "" {
+		writeError(w, http.StatusBadRequest, "chat id is required")
+		return
+	}
+
+	userID, ok := middleware.UserID(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	isMember, err := h.chatService.IsMember(r.Context(), chatID, userID)
+	if err != nil || !isMember {
+		writeError(w, http.StatusForbidden, "you are not a member of this chat")
+		return
+	}
+
+	limit := 50
+	offset := 0
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 200 {
+			limit = n
+		}
+	}
+	if v := r.URL.Query().Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+
+	msgs, err := h.service.ListByChat(r.Context(), chatID, limit, offset)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	result := make([]messageItem, 0, len(msgs))
+	for _, m := range msgs {
+		result = append(result, messageItem{
+			ID:        m.ID,
+			SenderID:  m.SenderID,
+			Text:      m.Text,
+			CreatedAt: m.CreatedAt,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(result)
 }

@@ -54,7 +54,7 @@ func main() {
 
 	chatRepo := repository.NewPostgresChatRepository(db)
 	chatService := service.NewChatService(chatRepo)
-	chatHandler := handler.NewChatHandler(chatService)
+	chatHandler := handler.NewChatHandler(chatService, userService)
 
 	producer := kafka.NewProducer(cfg.KafkaBroker, cfg.KafkaTopic)
 	defer producer.Close()
@@ -70,7 +70,7 @@ func main() {
 
 	messageRepo := repository.NewPostgresMessageRepository(db)
 	messageService := service.NewMessageService(messageRepo, chatRepo)
-	messageHandler := handler.NewMessageHandler(messageService)
+	messageHandler := handler.NewMessageHandler(messageService, chatService)
 
 	processor := repository.NewPostgresMessageProcessor(db)
 	consumer := kafka.NewConsumer(cfg.KafkaBroker, cfg.KafkaTopic, "messenger-consumer", processor)
@@ -110,8 +110,18 @@ func main() {
 	)
 
 	mux.Handle(
+		"GET /chats",
+		authMiddleware(http.HandlerFunc(chatHandler.List)),
+	)
+
+	mux.Handle(
 		"POST /chats",
 		authMiddleware(http.HandlerFunc(chatHandler.Create)),
+	)
+
+	mux.Handle(
+		"GET /chats/{chatID}/members",
+		authMiddleware(http.HandlerFunc(chatHandler.GetMembers)),
 	)
 
 	mux.Handle(
@@ -120,9 +130,33 @@ func main() {
 	)
 
 	mux.Handle(
+		"GET /chats/{chatID}/messages",
+		authMiddleware(http.HandlerFunc(messageHandler.List)),
+	)
+
+	mux.Handle(
 		"POST /chats/{chatID}/messages",
 		authMiddleware(http.HandlerFunc(messageHandler.Send)),
 	)
+
+	mux.Handle(
+		"GET /users/search",
+		authMiddleware(http.HandlerFunc(userHandler.Search)),
+	)
+
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, "/app", http.StatusFound)
+			return
+		}
+		http.NotFound(w, r)
+	})
+
+	fs := http.FileServer(http.Dir("web"))
+	mux.Handle("GET /static/", http.StripPrefix("/static/", fs))
+	mux.HandleFunc("GET /app", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "web/index.html")
+	})
 
 	middlewareChain := middleware.CORS(cfg.CORSOrigin)(mux)
 

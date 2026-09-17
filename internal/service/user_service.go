@@ -16,6 +16,8 @@ var (
 
 type UserService interface {
 	Register(ctx context.Context, username, password string) (string, error)
+	SearchByUsername(ctx context.Context, query string) ([]repository.User, error)
+	GetByID(ctx context.Context, id string) (string, error)
 }
 
 type userService struct {
@@ -56,4 +58,12 @@ func (s *userService) Register(
 	}
 
 	return id, nil
+}
+
+func (s *userService) SearchByUsername(ctx context.Context, query string) ([]repository.User, error) {
+	return s.users.SearchByUsername(ctx, query, 20)
+}
+
+func (s *userService) GetByID(ctx context.Context, id string) (string, error) {
+	return s.users.GetByID(ctx, id)
 }
